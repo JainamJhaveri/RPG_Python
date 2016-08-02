@@ -9,16 +9,17 @@ weapons = {"Great Sword":40}
 #Level Up Functionality For Player (Includes exp, maxexp and level data members for player
 #Adaptive strength(health and attack) for enemies
 #Adaptive gain(gold and exp) from enemies
+#Rooms - 3 rooms for now - Increasing enemy strength and expgain - Boss in last room
 
-#To Do Ideas:
+#ToDo Ideas:
 #Save and Load - File Handling - Simply Read and Write Player Stats
 #Storyline? Boss Enemy?
 #Dialogue? Humor?
-#Text Graphic Display?
 
 class Player:
     maxhealth = 100
     level = 1
+    room = 1
     maxexp = 100
     def __init__(self, name):
         self.name = name
@@ -27,6 +28,8 @@ class Player:
         self.base_attack = 10
         self.gold = 40
         self.potions = 2
+        self.rkill = 0
+        self.maxrkill = self.room * 5
         self.weap = ["Rusty Sword"]
         self.curweap = ["Rusty Sword"]
 
@@ -51,6 +54,28 @@ class Player:
             self.maxexp *= 2
             self.health = self.maxhealth
             print("Congratulations! You Have Levelled Up!")
+
+    def roomup(self):
+        if(self.rkill>=self.maxrkill):
+            print("You Can Move To Next Room If You Wish")
+            print("Press Y to Advance")
+            choice = input('-->')
+            if(choice == 'Y'):
+                self.rkill = 0
+                self.room += 1
+                self.maxrkill = self.room * 5
+                print("Congratulations! You Have Advanced To Room %i" % self.room)
+                start1()
+            else:
+                start1()
+        else:
+            print("You Cannot Advance To Next Room Yet")
+            print("You Only Have (%i/%i) Kills" % (self.rkill,self.maxrkill))
+            print("You Must Kill %i More Enemies To Advance" % int(self.maxrkill - self.rkill))
+            print("Press Return To Continue")
+            input(' ')
+            start1()
+
 
 class Goblin:
 
@@ -88,33 +113,47 @@ def store():
             print("You have bought %s" %option)
         else:
             print("You don't have enough gold")
+        input('Press Return To Continue')
+        store()
     elif(option == "2"):
         if(PlayerIG.gold >= 20):
             PlayerIG.gold -= 20
             PlayerIG.potions += 1
             print("You have successfully bought a potion! You now have %i potions" %PlayerIG.potions)
+        else:
+            print("You don't have enough gold")
+        input('Press Return To Continue')
+        store()
     elif(option == "3"):
         start1()
     else:
         print("That item doesn't exit")
+        input('Press Return To Continue')
+        store()
 
-    input('\nPress Return To Continue')
-    store()
 
 
 def prefight():
     enemynum = random.randint(1, 2)
     global enemy
-    if (enemynum == 1):
-        enemy = Goblin("Goblin",PlayerIG.maxhealth)
-    else:
-        enemy = Zombie("Zombie",PlayerIG.maxhealth)
+    if(PlayerIG.room == 1):
+        if (enemynum == 1):
+            enemy = Goblin("Goblin", PlayerIG.maxhealth)
+        else:
+            enemy = Zombie("Zombie", PlayerIG.maxhealth)
+    elif(PlayerIG.room == 2):
+        if (enemynum == 1):
+            enemy = Goblin("Goblin Leader", int(PlayerIG.maxhealth*1.3))
+        else:
+            enemy = Zombie("Zombie Legion", int(PlayerIG.maxhealth*1.3))
+    elif (PlayerIG.room == 3):
+        enemy = Goblin("Goblin King", PlayerIG.maxhealth*2)
     fight()
 
 
 def dead():
     # clear()
-    print("You have died")
+    print("You have died! You managed to reach room %i" % PlayerIG.room)
 
 
 def win():
@@ -122,8 +161,14 @@ def win():
     #enemy.health = enemy.health = enemy.maxhealth
     print("You have defeated the %s" % enemy.name)
     print("You have found %i gold" % enemy.goldgain)
-    print("You have gained %i experience" % int(enemy.maxhealth/3))
+    if(PlayerIG.room == 1):
+        print("You have gained %i experience" % int(enemy.maxhealth / 3))
+    elif (PlayerIG.room == 2):
+        print("You have gained %i experience" % int(enemy.maxhealth / 2))
+    elif (PlayerIG.room == 3):
+        print("You have gained %i experience" % int(enemy.maxhealth))
     PlayerIG.expgain(int(enemy.maxhealth / 3))
+    PlayerIG.rkill += 1
     input('Press Return To Continue')
     start1()
 
@@ -151,6 +196,39 @@ def attack():
         else:
             fight()
 
+def autoattack():
+    # clear()
+    PDamage = 0
+    EDamage = 0
+    while(PlayerIG.health > enemy.attack):
+        PAttack = random.randint(PlayerIG.attack / 2, PlayerIG.attack)
+        EAttack = random.randint(int(enemy.attack / 2), enemy.attack)
+        if (PAttack == PlayerIG.attack / 2):
+            PAttack = 0
+        else:
+            enemy.health -= PAttack
+            PDamage += PAttack
+        if(enemy.health<=0):
+            break
+        else:
+            # clear()
+            if (EAttack == EAttack / 2):
+                EAttack = 0
+            else:
+                PlayerIG.health -= EAttack
+                EDamage += EAttack
+            #Player Shouldn't Die in AutoAttack - If It Reaches Here Then Logic Is Wrong
+            if (PlayerIG.health <= 0):
+                print("You Died In AutoAttack! Shouldn't Have Happened!")
+                input("Press Return To Continue")
+                dead()
+    print("You Did %i Damage To Enemy" % PDamage)
+    print("The Enemy Did %i Damage To You" % EDamage)
+    if (enemy.health <= 0):
+        win()
+    else:
+        input("Press Return To Continue ")
+        fight()
 
 def drinkpotion():
     pass
@@ -163,27 +241,25 @@ def drinkpotion():
         if (PlayerIG.health > PlayerIG.maxhealth):
             PlayerIG.health = PlayerIG.maxhealth
         print("You drank a potion")
-    input('')
+    input('Press Return To Continue')
     fight()
 
 
 def run():
     # clear()
-    runnum = random.randint(1, 3)
+    runnum = random.randint(1, 2)
     if (runnum == 1):
         print("You have successfully ran away")
-        input('')
+        input('Press Return To Continue')
         start1()
     else:
         print("You failed to get away")
-        input('')
         EAttack = random.randint(int(enemy.attack / 2), enemy.attack)
         if (EAttack == EAttack / 2):
             print("Enemy missed")
         else:
             PlayerIG.health -= EAttack
             print("The enemy did %i damage" % EAttack)
-        input(' ')
         if (PlayerIG.health <= 0):
             dead()
         else:
@@ -197,10 +273,22 @@ def fight():
           % (PlayerIG.name, PlayerIG.health, PlayerIG.maxhealth, enemy.name, enemy.health, enemy.maxhealth))
     print("1. Attack")
     print("2. Drink Potion")
-    print("3. Run")
-    option = int(input('-->'))
+    print("3. Flee")
+    flag = True
+    while (flag):
+        try:
+            option = int(input("-->"))
+            flag = False
+        except:
+            print("Invalid Input!! Try Again!!")
+            flag = True
     if (option == 1):
-        attack()
+        print("Auto Attack? (Enter 1 For To Auto Attack)")
+        choice = input("-->")
+        if(choice == '1'):
+            autoattack()
+        else:
+            attack()
     elif (option == 2):
         drinkpotion()
     elif (option == 3):
@@ -221,16 +309,26 @@ def start1():
     print("Potions: %i" % (PlayerIG.potions))
     print("1. Fight")
     print("2. Store")
-    print("3. Save")
-    print("4. Exit")
-    option = int(input("-->"))
+    print("3. Check Room Advancement")
+    print("4. Save")
+    print("5. Exit")
+    flag = True
+    while (flag):
+        try:
+            option = int(input("-->"))
+            flag = False
+        except:
+            print("Invalid Input!! Try Again!!")
+            flag = True
     if (option == 1):
         prefight()
     elif (option == 2):
         store()
     elif (option == 3):
-        pass
+        PlayerIG.roomup()
     elif (option == 4):
+        pass
+    elif (option == 5):
         sys.exit()
     else:
         start1()
@@ -251,8 +349,14 @@ def main():
     print("1. Start")
     print("2. Load")
     print("3. Exit")
-    option = int(input("-->"))
-
+    flag = True
+    while(flag):
+        try:
+            option = int(input("-->"))
+            flag = False
+        except:
+            print("Invalid Input!! Try Again!!")
+            flag = True
     if (option == 1):
         start()
     elif (option == 2):
